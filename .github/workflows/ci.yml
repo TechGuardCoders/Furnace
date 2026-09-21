@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # CPU-only torch wheel: ~200MB instead of the 2GB+ CUDA default
+      - name: Install CPU torch + pytest
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.1+cpu
+          pip install pytest==8.3.2
+
+      - name: Unit tests (offline)
+        run: python -m pytest tests/ -q
+
+      - name: Single-rank fault-drill smoke
+        run: |
+          python -u furnace.py --world-size 1 --max-steps 20 --ckpt-every 5 --fault-at-step 8 --ckpt-dir ci_ckpt
+          python - <<'EOF'
+          import json
+          s = json.load(open("ci_ckpt/summary.json"))
+          assert s["attempts"] >= 2, f"expected restart, got attempts={s['attempts']}"
+          assert s["fault_injected"] == 8
+          print(f"CI smoke OK: killed at step 8, completed in {s['attempts']} attempts")
+          EOF
