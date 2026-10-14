@@ -37,6 +37,32 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 
+# ---------------------------------------------------------------- fleet
+#
+# Fleet nodes: named serving nodes in the cluster. Furnace trains locally, but
+# checkpoint TARGETS are per node - each node gets its own checkpoint directory
+# so a per-node resume never mixes state. Default (no --node) keeps the original
+# single-directory behavior unchanged. Read-only w.r.t. the serving stack.
+
+FLEET_NODES = {
+    "glm-head": "http://192.168.0.182:8000",
+    "tensorfold": "http://192.168.0.157:8421",
+    "bonsai-1": "http://192.168.0.10:8422",
+    "bonsai-2": "http://192.168.0.144:8422",
+    "sushi": "http://192.168.0.11:8450",
+}
+
+
+def checkpoint_dir_for(node: str | None, base_dir: str = "checkpoints") -> Path:
+    """Per-node checkpoint target: <base>/<node>/ when a fleet node is named,
+    otherwise the plain base dir (default single-node behavior)."""
+    if node is None:
+        return Path(base_dir)
+    if node not in FLEET_NODES:
+        raise SystemExit(f"unknown node {node!r}; known: {', '.join(sorted(FLEET_NODES))}")
+    return Path(base_dir) / node
+
+
 # ---------------------------------------------------------------- model
 
 
@@ -295,11 +321,19 @@ def main():
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--fault-at-step", type=int, default=None,
                     help="hard-kill the job when global step hits this")
+    ap.add_argument("--node", default=None,
+                    help=f"fleet node to checkpoint for (one of: "
+                         f"{', '.join(sorted(FLEET_NODES))}); checkpoints go to "
+                         f"<ckpt-dir>/<node>/")
     args = ap.parse_args()
+
+    # per-node checkpoint target: default (no --node) is the plain ckpt-dir
+    args.ckpt_dir = str(checkpoint_dir_for(args.node, args.ckpt_dir))
 
     fault = {"at_step": args.fault_at_step}
     print(f"Furnace: world_size={args.world_size} max_steps={args.max_steps} "
-          f"ckpt_every={args.ckpt_every} fault_at_step={args.fault_at_step}", flush=True)
+          f"ckpt_every={args.ckpt_every} fault_at_step={args.fault_at_step} "
+          f"node={args.node or 'default'} ckpt_dir={args.ckpt_dir}", flush=True)
 
     summary = run_job(args, fault)
 
@@ -307,6 +341,7 @@ def main():
     (ckpt_dir / "summary.json").write_text(json.dumps({
         "attempts": summary["attempts"], "fault_injected": fault["at_step"],
         "world_size": args.world_size, "max_steps": args.max_steps,
+        "node": args.node,
         "shard_account_1m_adam": shard_account(1.0, args.world_size),
     }, indent=2))
     print(f"DONE attempts={summary['attempts']}", flush=True)

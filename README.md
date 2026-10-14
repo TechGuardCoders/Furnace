@@ -81,3 +81,11 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
 ## Tests
 
 6 offline unit tests (`tests/test_furnace.py`): atomic save roundtrip, no torn files, optimizer-state resume (Adam moments survive), shard-account math, deterministic dataloader, model forward shape. CI adds a single-rank fault-drill smoke run.
+
+## Fleet: per-node checkpoint targets
+
+Furnace is fleet-aware: `--node NAME` routes checkpoints to `<ckpt-dir>/<NAME>/`, so each serving node's resume state stays isolated. Nodes: `glm-head`, `tensorfold`, `bonsai-1`, `bonsai-2`, `sushi`. No `--node` keeps the original single-directory behavior.
+
+```bash
+python furnace.py --node tensorfold --ckpt-dir checkpoints   # -> checkpoints/tensorfold/
+```
