@@ -1,0 +1,12 @@
+.git
+.github
+__pycache__/
+*.pyc
+.pytest_cache/
+checkpoints/
+ci_ckpt/
+*.md
+!README.md
+tests/
+benchmarks/
+traces/

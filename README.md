@@ -89,3 +89,18 @@ Furnace is fleet-aware: `--node NAME` routes checkpoints to `<ckpt-dir>/<NAME>/`
 ```bash
 python furnace.py --node tensorfold --ckpt-dir checkpoints   # -> checkpoints/tensorfold/
 ```
+
+## Docker
+
+Multi-stage, multi-arch image (amd64 + arm64), runs as non-root.
+
+```bash
+# Build for your local arch
+docker build -t furnace .
+
+# Build for both arches with buildx
+docker buildx build --platform linux/amd64,linux/arm64 -t furnace .
+
+# Run
+docker run --rm -v $(pwd)/checkpoints:/app/checkpoints furnace
+```

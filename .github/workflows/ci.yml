@@ -35,3 +35,10 @@ jobs:
           assert s["fault_injected"] == 8
           print(f"CI smoke OK: killed at step 8, completed in {s['attempts']} attempts")
           EOF
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build smoke test
+        run: docker build .
