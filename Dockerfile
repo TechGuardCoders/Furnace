@@ -6,7 +6,7 @@
 FROM python:3.12-slim AS builder
 WORKDIR /app
 # CPU-only torch wheels exist for both amd64 and arm64
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --prefix=/install torch==2.4.1
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --prefix=/install torch==2.4.1 numpy
 COPY . .
 
 FROM python:3.12-slim AS runtime
